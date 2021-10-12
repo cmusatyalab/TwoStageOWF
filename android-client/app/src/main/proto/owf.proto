@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package owf;
+
+option java_package = "edu.cmu.cs.owf";
+option java_outer_classname = "Protos";
+
+message ToServerExtras {
+    string step = 1;
+}
+
+message ToClientExtras {
+    string step = 1;
+}

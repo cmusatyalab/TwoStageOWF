@@ -2,6 +2,7 @@ import ast
 import argparse
 import json
 import logging
+import io
 import os
 from collections import namedtuple
 
@@ -183,10 +184,60 @@ class InferenceEngine(cognitive_engine.Engine):
             return _result_wrapper_for_transition(state.always_transition)
 
         assert len(state.processors) == 1, 'wrong number of processors'
+        processor = state.processors[0]
+        callable_args = json.loads(processor.callable_args)
+        detector_dir = callable_args[DETECTOR_PATH]
+        detector = self._states_models.get_object_detector(detector_dir)
 
         np_data = np.frombuffer(input_frame.payloads[0], dtype=np.uint8)
         img = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        detections = detector(np.expand_dims(img, 0))
+
+        scores = detections['detection_scores'][0].numpy()
+        boxes = detections['detection_boxes'][0].numpy()
+
+        im_height, im_width = img.shape[:2]
+
+        classifier_dir = callable_args[CLASSIFIER_PATH]
+        classifier = self._states_models.get_classifier(classifier_dir)
+
+        pil_img = Image.open(io.BytesIO(input_frame.payloads[0]))
+
+        for score, box in zip(scores, boxes):
+            if score < self.conf_threshold:
+                continue
+            logger.debug('found object')
+
+            # from https://github.com/tensorflow/models/blob/39f98e30e7fb51c8b7ad58b0fc65ee5312829deb/research/object_detection/utils/visualization_utils.py#L1232
+            ymin, xmin, ymax, xmax = box
+
+            # from https://github.com/tensorflow/models/blob/39f98e30e7fb51c8b7ad58b0fc65ee5312829deb/official/vision/detection/utils/object_detection/visualization_utils.py#L192
+            (left, right, top, bottom) = (
+                xmin * im_width, xmax * im_width,
+                ymin * im_height, ymax * im_height)
+
+            cropped_pil = pil_img.crop((left, top, right, bottom))
+            transformed = self._transform(cropped_pil).cuda()
+
+            output = classifier.model(transformed[None, ...])
+            _, pred = output.topk(1, 1, True, True)
+            classId = pred.t()
+
+            label_name = classifier.labels[classId]
+            transition = state.has_class_transitions.get(label_name)
+            if transition is None:
+                continue
+
+            return _result_wrapper_for_transition(transition)
+
+        status = gabriel_pb2.ResultWrapper.Status.SUCCESS
+        result_wrapper = cognitive_engine.create_result_wrapper(status)
+        to_client_extras = owf_pb2.ToClientExtras()
+        to_client_extras.step = step
+
+        result_wrapper.extras.Pack(to_client_extras)
+        return result_wrapper
 
 
 def main():

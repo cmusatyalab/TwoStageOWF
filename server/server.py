@@ -127,27 +127,30 @@ class _StatesModels:
         callable_args = json.loads(processor.callable_args)
         classifier_dir = callable_args[CLASSIFIER_PATH]
 
-        labels_file = open(os.path.join(classifier_dir, LABELS_FILENAME))
-        labels = ast.literal_eval(labels_file.read())
+        if classifier_dir not in self._classifiers:
+            labels_file = open(os.path.join(classifier_dir, LABELS_FILENAME))
+            labels = ast.literal_eval(labels_file.read())
 
-        freezed_layer = 0
-        model = mpncov.Newmodel(self._classifier_representation, len(labels),
-                                freezed_layer)
-        model.features = torch.nn.DataParallel(self._model.features)
-        model.cuda()
-        trained_model = torch.load(os.path.join(classifier_dir,
-                                                CLASSIFIER_FILENAME))
-        model.load_state_dict(trained_model['state_dict'])
-        model.eval()
+            freezed_layer = 0
+            model = mpncov.Newmodel(self._classifier_representation,
+                                    len(labels), freezed_layer)
+            model.features = torch.nn.DataParallel(self._model.features)
+            model.cuda()
+            trained_model = torch.load(os.path.join(classifier_dir,
+                                                    CLASSIFIER_FILENAME))
+            model.load_state_dict(trained_model['state_dict'])
+            model.eval()
 
-        self._classifiers[classifier_dir] = _Classifier(
-            model=model, labels=labels)
+            self._classifiers[classifier_dir] = _Classifier(
+                model=model, labels=labels)
 
         detector_dir = callable_args[DETECTOR_PATH]
-        detector = tf.saved_model.load(detector_dir)
-        ones = tf.ones(DETECTOR_ONES_SIZE, dtype=tf.uint8)
-        detector(ones)
-        self._object_detectors[detector_dir] = detector
+
+        if detector_dir not in self._object_detectors:
+            detector = tf.saved_model.load(detector_dir)
+            ones = tf.ones(DETECTOR_ONES_SIZE, dtype=tf.uint8)
+            detector(ones)
+            self._object_detectors[detector_dir] = detector
 
     def get_classifier(self, path):
         return self._classifiers[path]

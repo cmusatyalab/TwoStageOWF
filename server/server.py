@@ -37,6 +37,7 @@ CLASS_NAME = 'class_name'
 TWO_STAGE_PROCESSOR = 'TwoStageProcessor'
 CLASSIFIER_PATH = 'classifier_path'
 DETECTOR_PATH = 'detector_path'
+CONF_THRESHOLD = 'conf_threshold'
 
 LABELS_FILENAME = 'labels.txt'
 CLASSIFIER_FILENAME = 'model_best.pth.tar'
@@ -207,8 +208,9 @@ class InferenceEngine(cognitive_engine.Engine):
 
         pil_img = Image.open(io.BytesIO(input_frame.payloads[0]))
 
+        conf_threshold = callable_args[CONF_THRESHOLD]
         for score, box in zip(scores, boxes):
-            if score < self.conf_threshold:
+            if score < conf_threshold:
                 continue
             logger.debug('found object')
 

@@ -55,18 +55,6 @@ public class MainActivity extends AppCompatActivity {
                     resultWrapper.getExtras().getValue());
             step = toClientExtras.getStep();
 
-//            String speech = toClientExtras.getSpeech();
-//            if (!speech.isEmpty()) {
-//                this.textToSpeech.speak(speech, TextToSpeech.QUEUE_ADD, null, null);
-//                // this.sendingSwitch.post(() -> this.sendingSwitch.setChecked(false));
-//            }
-//
-//            ByteString image = toClientExtras.getImage();
-//            if (!image.isEmpty()) {
-//                instructionViewUpdater.accept(image);
-//            }
-
-
         } catch (InvalidProtocolBufferException e) {
             Log.e(TAG, "Protobuf parse error", e);
         }
@@ -76,9 +64,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         Protos.ResultWrapper.Result result = resultWrapper.getResults(0);
-        ByteString jpegByteString = result.getPayload();
-
-        cropViewUpdater.accept(jpegByteString);
+        ByteString dataString = result.getPayload();
+        String speech = dataString.toStringUtf8();
+        this.textToSpeech.speak(speech, TextToSpeech.QUEUE_ADD, null, null);
     };
 
     @Override

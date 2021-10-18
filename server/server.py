@@ -69,6 +69,16 @@ def _result_wrapper_for_transition(transition):
     return result_wrapper
 
 
+def _result_wrapper_for(step):
+    status = gabriel_pb2.ResultWrapper.Status.SUCCESS
+    result_wrapper = cognitive_engine.create_result_wrapper(status)
+    to_client_extras = owf_pb2.ToClientExtras()
+    to_client_extras.step = step
+
+    result_wrapper.extras.Pack(to_client_extras)
+    return result_wrapper
+
+
 class _StatesModels:
     def __init__(self, fsm_file_path):
         self._states = {}
@@ -189,6 +199,9 @@ class InferenceEngine(cognitive_engine.Engine):
         if state.always_transition is not None:
             return _result_wrapper_for_transition(state.always_transition)
 
+        if len(state.processors) == 0:
+            return _result_wrapper_for(step)
+        
         assert len(state.processors) == 1, 'wrong number of processors'
         processor = state.processors[0]
         callable_args = json.loads(processor.callable_args)
@@ -232,19 +245,14 @@ class InferenceEngine(cognitive_engine.Engine):
             classId = pred.t()
 
             label_name = classifier.labels[classId]
+            logger.info('Found label: %s', label_name)
             transition = state.has_class_transitions.get(label_name)
             if transition is None:
                 continue
 
             return _result_wrapper_for_transition(transition)
 
-        status = gabriel_pb2.ResultWrapper.Status.SUCCESS
-        result_wrapper = cognitive_engine.create_result_wrapper(status)
-        to_client_extras = owf_pb2.ToClientExtras()
-        to_client_extras.step = step
-
-        result_wrapper.extras.Pack(to_client_extras)
-        return result_wrapper
+        return _result_wrapper_for(step)
 
 
 def main():

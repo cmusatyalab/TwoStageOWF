@@ -47,8 +47,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-_State = namedtuple('_State', ['always_transition', 'has_class_transitions'])
-_Transition = namedtuple('_Transition', ['instruction', 'next_state'])
+_State = namedtuple('_State', ['always_transition', 'has_class_transitions', 'processors'])
 _Classifier = namedtuple('_Classifier', ['model', 'labels'])
 
 
@@ -75,7 +74,6 @@ class _StatesModels:
         self._states = {}
         self._classifiers = {}
         self._object_detectors = {}
-        self._labels = {}
 
         self._classifier_representation = {
             'function': mpncov.MPNCOV,
@@ -100,9 +98,6 @@ class _StatesModels:
 
             for transition in state.transitions:
                 assert (len(transition.predicates) == 1), 'bad transition'
-                transition = _Transition(
-                    instruction=transition.instruction,
-                    next_state=transition.next_state)
 
                 predicate = transition.predicates[0]
                 if predicate.callable_name == ALWAYS:
@@ -118,7 +113,8 @@ class _StatesModels:
 
             self._states[state.name] = _State(
                 always_transition=always_transition,
-                has_class_transitions=has_class_transitions)
+                has_class_transitions=has_class_transitions,
+                processors=state.processors)
 
         self._start_state = self._states[pb_fsm.start_state]
 
@@ -135,7 +131,7 @@ class _StatesModels:
             freezed_layer = 0
             model = mpncov.Newmodel(self._classifier_representation,
                                     len(labels), freezed_layer)
-            model.features = torch.nn.DataParallel(self._model.features)
+            model.features = torch.nn.DataParallel(model.features)
             model.cuda()
             trained_model = torch.load(os.path.join(classifier_dir,
                                                     CLASSIFIER_FILENAME))
@@ -159,11 +155,15 @@ class _StatesModels:
     def get_object_detector(self, path):
         return self._object_detectors[path]
 
+    def get_state(self, name):
+        return self._states[name]
+    
+    def get_start_state(self):
+        return self._start_state
+
 
 class InferenceEngine(cognitive_engine.Engine):
     def __init__(self, fsm_file_path):
-        self._states_models = _StatesModels(fsm_file_path)
-
         physical_devices = tf.config.list_physical_devices('GPU')
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
@@ -173,7 +173,8 @@ class InferenceEngine(cognitive_engine.Engine):
             transforms.Resize((448, 448)),
             transforms.ToTensor(),
             normalize,
-        ])
+        ])        
+        self._states_models = _StatesModels(fsm_file_path)
 
     def handle(self, input_frame):
         to_server_extras = cognitive_engine.unpack_extras(
@@ -181,9 +182,10 @@ class InferenceEngine(cognitive_engine.Engine):
 
         step = to_server_extras.step
         if step == '':
-            step = self._fsm.start_state
-
-        state = self._fsm.states[step]
+            state = self._states_models.get_start_state()
+        else:
+            state = self._states_models.get_state(step)
+            
         if state.always_transition is not None:
             return _result_wrapper_for_transition(state.always_transition)
 
@@ -208,7 +210,7 @@ class InferenceEngine(cognitive_engine.Engine):
 
         pil_img = Image.open(io.BytesIO(input_frame.payloads[0]))
 
-        conf_threshold = callable_args[CONF_THRESHOLD]
+        conf_threshold = float(callable_args[CONF_THRESHOLD])
         for score, box in zip(scores, boxes):
             if score < conf_threshold:
                 continue

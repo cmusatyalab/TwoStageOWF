@@ -11,6 +11,8 @@ import numpy as np
 import tensorflow as tf
 from PIL import Image
 
+from object_detection.utils import label_map_util
+
 from torchvision import transforms
 import torch
 
@@ -37,10 +39,12 @@ CLASS_NAME = 'class_name'
 TWO_STAGE_PROCESSOR = 'TwoStageProcessor'
 CLASSIFIER_PATH = 'classifier_path'
 DETECTOR_PATH = 'detector_path'
+DETECTOR_CLASS_NAME = 'detector_class_name'
 CONF_THRESHOLD = 'conf_threshold'
 
 LABELS_FILENAME = 'labels.txt'
 CLASSIFIER_FILENAME = 'model_best.pth.tar'
+LABEL_MAP_FILENAME = 'label_map.pbtxt'
 
 
 logging.basicConfig(level=logging.INFO)
@@ -49,6 +53,7 @@ logger = logging.getLogger(__name__)
 
 _State = namedtuple('_State', ['always_transition', 'has_class_transitions', 'processors'])
 _Classifier = namedtuple('_Classifier', ['model', 'labels'])
+_Detector = namedtuple('_Detector', ['detector', 'category_index'])
 
 
 def _result_wrapper_for_transition(transition):
@@ -60,6 +65,11 @@ def _result_wrapper_for_transition(transition):
     result = gabriel_pb2.ResultWrapper.Result()
     result.payload_type = gabriel_pb2.PayloadType.TEXT
     result.payload = transition.instruction.audio.encode()
+    result_wrapper.results.append(result)
+
+    result = gabriel_pb2.ResultWrapper.Result()
+    result.payload_type = gabriel_pb2.PayloadType.IMAGE
+    result.payload = transition.instruction.image
     result_wrapper.results.append(result)
 
     to_client_extras = owf_pb2.ToClientExtras()
@@ -157,7 +167,18 @@ class _StatesModels:
             detector = tf.saved_model.load(detector_dir)
             ones = tf.ones(DETECTOR_ONES_SIZE, dtype=tf.uint8)
             detector(ones)
-            self._object_detectors[detector_dir] = detector
+
+            label_map_path = os.path.join(detector_dir, LABEL_MAP_FILENAME)
+            label_map = label_map_util.load_labelmap(label_map_path)
+            categories = label_map_util.convert_label_map_to_categories(
+                label_map,
+                max_num_classes=label_map_util.get_max_label_map_index(
+                    label_map),
+                use_display_name=True)
+            category_index = label_map_util.create_category_index(categories)
+
+            self._object_detectors[detector_dir] = _Detector(
+                detector=detector, category_index=category_index)
 
     def get_classifier(self, path):
         return self._classifiers[path]
@@ -167,7 +188,7 @@ class _StatesModels:
 
     def get_state(self, name):
         return self._states[name]
-    
+
     def get_start_state(self):
         return self._start_state
 
@@ -183,7 +204,7 @@ class InferenceEngine(cognitive_engine.Engine):
             transforms.Resize((448, 448)),
             transforms.ToTensor(),
             normalize,
-        ])        
+        ])
         self._states_models = _StatesModels(fsm_file_path)
 
     def handle(self, input_frame):
@@ -195,13 +216,13 @@ class InferenceEngine(cognitive_engine.Engine):
             state = self._states_models.get_start_state()
         else:
             state = self._states_models.get_state(step)
-            
+
         if state.always_transition is not None:
             return _result_wrapper_for_transition(state.always_transition)
 
         if len(state.processors) == 0:
             return _result_wrapper_for(step)
-        
+
         assert len(state.processors) == 1, 'wrong number of processors'
         processor = state.processors[0]
         callable_args = json.loads(processor.callable_args)
@@ -211,10 +232,11 @@ class InferenceEngine(cognitive_engine.Engine):
         np_data = np.frombuffer(input_frame.payloads[0], dtype=np.uint8)
         img = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        detections = detector(np.expand_dims(img, 0))
+        detections = detector.detector(np.expand_dims(img, 0))
 
         scores = detections['detection_scores'][0].numpy()
         boxes = detections['detection_boxes'][0].numpy()
+        classes = (detections['detection_classes'][0].numpy() + 1).astype(int)
 
         im_height, im_width = img.shape[:2]
 
@@ -224,8 +246,10 @@ class InferenceEngine(cognitive_engine.Engine):
         pil_img = Image.open(io.BytesIO(input_frame.payloads[0]))
 
         conf_threshold = float(callable_args[CONF_THRESHOLD])
-        for score, box in zip(scores, boxes):
-            if score < conf_threshold:
+        detector_class_name = callable_args[DETECTOR_CLASS_NAME]
+        for score, box, class_id in zip(scores, boxes, classes):
+            class_name = detector.category_index[classes[i]]['name']
+            if (score < conf_threshold) or (class_name != detector_class_name):
                 continue
             logger.debug('found object')
 

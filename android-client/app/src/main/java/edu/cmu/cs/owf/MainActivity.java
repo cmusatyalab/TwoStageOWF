@@ -63,10 +63,16 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        Protos.ResultWrapper.Result result = resultWrapper.getResults(0);
-        ByteString dataString = result.getPayload();
-        String speech = dataString.toStringUtf8();
-        this.textToSpeech.speak(speech, TextToSpeech.QUEUE_ADD, null, null);
+        for (Protos.ResultWrapper.Result result : resultWrapper.getResultsList()) {
+            if (result.getPayloadType() == Protos.PayloadType.TEXT) {
+                ByteString dataString = result.getPayload();
+                String speech = dataString.toStringUtf8();
+                this.textToSpeech.speak(speech, TextToSpeech.QUEUE_ADD, null, null);
+            } else {
+                ByteString image = result.getPayload();
+                instructionViewUpdater.accept(image);
+            }
+        }
     };
 
     @Override
@@ -79,14 +85,13 @@ public class MainActivity extends AppCompatActivity {
         cropViewUpdater = new ImageViewUpdater(cropView);
         ImageView instructionView = findViewById(R.id.instructionView);
         instructionViewUpdater = new ImageViewUpdater(instructionView);
-        // sendingSwitch = findViewById(R.id.sending);
 
         Consumer<ErrorType> onDisconnect = errorType -> {
             Log.e("MainActivity", "Disconnect Error: " + errorType.name());
             finish();
         };
         serverComm = ServerComm.createServerComm(
-                consumer, "vm030.elijah.cs.cmu.edu", PORT, getApplication(), onDisconnect);
+                consumer, BuildConfig.GABRIEL_HOST, PORT, getApplication(), onDisconnect);
 
         TextToSpeech.OnInitListener onInitListener = i -> {
             textToSpeech.setLanguage(Locale.US);
@@ -110,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
     // https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/compiler/java/java_message.cc#L1387
     public static Any pack(ToServerExtras toServerExtras) {
         return Any.newBuilder()
-                .setTypeUrl("type.googleapis.com/sterling.ToServerExtras")
+                .setTypeUrl("type.googleapis.com/owf.ToServerExtras")
                 .setValue(toServerExtras.toByteString())
                 .build();
     }
@@ -118,12 +123,6 @@ public class MainActivity extends AppCompatActivity {
     final private ImageAnalysis.Analyzer analyzer = new ImageAnalysis.Analyzer() {
         @Override
         public void analyze(@NonNull ImageProxy image) {
-//            if (!sendingSwitch.isChecked()) {
-//                image.close();
-//                return;
-//            }
-//            Log.i(TAG, "sending");
-
             serverComm.sendSupplier(() -> {
                 ByteString jpegByteString = yuvToJPEGConverter.convert(image);
 

@@ -42,7 +42,7 @@ DETECTOR_PATH = 'detector_path'
 DETECTOR_CLASS_NAME = 'detector_class_name'
 CONF_THRESHOLD = 'conf_threshold'
 
-LABELS_FILENAME = 'labels.txt'
+LABELS_FILENAME = 'classes.txt'
 CLASSIFIER_FILENAME = 'model_best.pth.tar'
 LABEL_MAP_FILENAME = 'label_map.pbtxt'
 

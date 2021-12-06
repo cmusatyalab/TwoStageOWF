@@ -10,12 +10,17 @@ import androidx.camera.view.PreviewView;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
+import android.view.View;
 import android.widget.ImageView;
+import android.widget.VideoView;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Locale;
 import java.util.function.Consumer;
 
@@ -48,6 +53,9 @@ public class MainActivity extends AppCompatActivity {
     private TextToSpeech textToSpeech;
     private ImageViewUpdater cropViewUpdater;
     private ImageViewUpdater instructionViewUpdater;
+    private ImageView instructionImage;
+    private VideoView instructionVideo;
+    private File videoFile;
 
     private final Consumer<Protos.ResultWrapper> consumer = resultWrapper -> {
         try {
@@ -68,9 +76,30 @@ public class MainActivity extends AppCompatActivity {
                 ByteString dataString = result.getPayload();
                 String speech = dataString.toStringUtf8();
                 this.textToSpeech.speak(speech, TextToSpeech.QUEUE_ADD, null, null);
-            } else {
+            } else if (result.getPayloadType() == Protos.PayloadType.IMAGE) {
                 ByteString image = result.getPayload();
                 instructionViewUpdater.accept(image);
+                instructionImage.setVisibility(View.VISIBLE);
+                instructionVideo.setVisibility(View.INVISIBLE);
+                instructionVideo.stopPlayback();
+            } else if (result.getPayloadType() == Protos.PayloadType.VIDEO) {
+                try {
+                    videoFile.delete();
+                    videoFile.createNewFile();
+                    FileOutputStream fos = new FileOutputStream(videoFile);
+                    result.getPayload().writeTo(fos);
+                    fos.close();
+
+                    runOnUiThread(() -> {
+                        instructionVideo.setVideoPath(videoFile.getPath());
+                        instructionVideo.start();
+
+                        instructionImage.setVisibility(View.INVISIBLE);
+                        instructionVideo.setVisibility(View.VISIBLE);
+                    });
+                } catch (IOException e) {
+                    Log.e(TAG, "video file failed", e);
+                }
             }
         }
     };
@@ -80,11 +109,15 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        videoFile = new File(this.getCacheDir(), "video");
+
         PreviewView viewFinder = findViewById(R.id.viewFinder);
         ImageView cropView = findViewById(R.id.cropView);
         cropViewUpdater = new ImageViewUpdater(cropView);
-        ImageView instructionView = findViewById(R.id.instructionView);
-        instructionViewUpdater = new ImageViewUpdater(instructionView);
+        instructionImage = findViewById(R.id.instructionImage);
+        instructionViewUpdater = new ImageViewUpdater(instructionImage);
+
+        instructionVideo = findViewById(R.id.instructionVideo);
 
         Consumer<ErrorType> onDisconnect = errorType -> {
             Log.e("MainActivity", "Disconnect Error: " + errorType.name());

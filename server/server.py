@@ -67,11 +67,18 @@ def _result_wrapper_for_transition(transition):
     result.payload = transition.instruction.audio.encode()
     result_wrapper.results.append(result)
 
-    result = gabriel_pb2.ResultWrapper.Result()
-    result.payload_type = gabriel_pb2.PayloadType.IMAGE
-    result.payload = transition.instruction.image
-    result_wrapper.results.append(result)
+    if len(transition.instruction.image) > 0:
+        result = gabriel_pb2.ResultWrapper.Result()
+        result.payload_type = gabriel_pb2.PayloadType.IMAGE
+        result.payload = transition.instruction.image
+        result_wrapper.results.append(result)
 
+    if len(transition.instruction.video) > 0:
+        result = gabriel_pb2.ResultWrapper.Result()
+        result.payload_type = gabriel_pb2.PayloadType.VIDEO
+        result.payload = transition.instruction.video
+        result_wrapper.results.append(result)
+    
     to_client_extras = owf_pb2.ToClientExtras()
     to_client_extras.step = transition.next_state
 

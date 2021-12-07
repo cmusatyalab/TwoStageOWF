@@ -7,6 +7,7 @@ import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 import androidx.camera.view.PreviewView;
 
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
@@ -35,6 +36,7 @@ import edu.cmu.cs.owf.Protos.ToServerExtras;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
+    private static final String VIDEO_NAME = "video";
     private static final String SOURCE = "owf_client";
     private static final int PORT = 9099;
 
@@ -79,9 +81,12 @@ public class MainActivity extends AppCompatActivity {
             } else if (result.getPayloadType() == Protos.PayloadType.IMAGE) {
                 ByteString image = result.getPayload();
                 instructionViewUpdater.accept(image);
-                instructionImage.setVisibility(View.VISIBLE);
-                instructionVideo.setVisibility(View.INVISIBLE);
-                instructionVideo.stopPlayback();
+
+                runOnUiThread(() -> {
+                    instructionImage.setVisibility(View.VISIBLE);
+                    instructionVideo.setVisibility(View.INVISIBLE);
+                    instructionVideo.stopPlayback();
+                });
             } else if (result.getPayloadType() == Protos.PayloadType.VIDEO) {
                 try {
                     videoFile.delete();
@@ -109,7 +114,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        videoFile = new File(this.getCacheDir(), "video");
+        videoFile = new File(this.getCacheDir(), VIDEO_NAME);
 
         PreviewView viewFinder = findViewById(R.id.viewFinder);
         ImageView cropView = findViewById(R.id.cropView);
@@ -118,6 +123,14 @@ public class MainActivity extends AppCompatActivity {
         instructionViewUpdater = new ImageViewUpdater(instructionImage);
 
         instructionVideo = findViewById(R.id.instructionVideo);
+
+        // from https://stackoverflow.com/a/8431374/859277
+        instructionVideo.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                mp.setLooping(true);
+            }
+        });
 
         Consumer<ErrorType> onDisconnect = errorType -> {
             Log.e("MainActivity", "Disconnect Error: " + errorType.name());

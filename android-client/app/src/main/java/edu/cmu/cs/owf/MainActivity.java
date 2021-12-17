@@ -1,5 +1,9 @@
 package edu.cmu.cs.owf;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
@@ -7,6 +11,7 @@ import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 import androidx.camera.view.PreviewView;
 
+import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
@@ -46,6 +51,11 @@ public class MainActivity extends AppCompatActivity {
     private static final int WIDTH = 1920;
     private static final int HEIGHT = 1080;
 
+    public static final String EXTRA_APP_KEY = "edu.cmu.cs.owf.APP_KEY";
+    public static final String EXTRA_APP_SECRET = "edu.cmu.cs.owf.APP_SECRET";
+    public static final String EXTRA_MEETING_NUMBER = "edu.cmu.cs.owf.MEETING_NUMBER";
+    public static final String EXTRA_MEETING_PASSWORD = "edu.cmu.cs.owf.MEETING_PASSWORD";
+
     private String step;
 
     private ServerComm serverComm;
@@ -58,6 +68,15 @@ public class MainActivity extends AppCompatActivity {
     private ImageView instructionImage;
     private VideoView instructionVideo;
     private File videoFile;
+
+    private final ActivityResultLauncher<Intent> activityResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    // Tell server Zoom call has ended
+                }
+            });
 
     private final Consumer<Protos.ResultWrapper> consumer = resultWrapper -> {
         try {
@@ -192,5 +211,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         cameraCapture.shutdown();
+    }
+
+    public void startZoom(View view) {
+        // Tell server zoom call has started
     }
 }

@@ -7,8 +7,22 @@ option java_outer_classname = "Protos";
 
 message ToServerExtras {
     string step = 1;
+    enum ZoomStatus {
+        NO_CALL = 0;
+        START = 1;
+        STOP = 2;
+    }
+    ZoomStatus zoom_status = 3;
 }
 
 message ToClientExtras {
     string step = 1;
+    ZoomInfo zoom_info = 2;
+}
+
+message ZoomInfo {
+    string app_key = 1;
+    string app_secret = 2;
+    string meeting_number = 3;
+    string meeting_password = 4;
 }

@@ -20,6 +20,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name="edu.cmu.cs.owf.ZoomActivity"
+            android:screenOrientation="fullSensor">
+        </activity>
     </application>
 
 </manifest>

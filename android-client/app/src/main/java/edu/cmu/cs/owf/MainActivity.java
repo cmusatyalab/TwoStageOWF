@@ -103,6 +103,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.putExtra(EXTRA_MEETING_PASSWORD, zoomInfo.getMeetingPassword());
 
                 activityResultLauncher.launch(intent);
+                return;
             } else if (toClientExtras.getZoomResult() == ToClientExtras.ZoomResult.EXPERT_BUSY) {
                 runOnUiThread(() -> {
                     AlertDialog alertDialog = new AlertDialog.Builder(this)
@@ -128,6 +129,8 @@ public class MainActivity extends AppCompatActivity {
                 ByteString dataString = result.getPayload();
                 String speech = dataString.toStringUtf8();
                 this.textToSpeech.speak(speech, TextToSpeech.QUEUE_ADD, null, null);
+
+                Log.i(TAG, "Saying: " + speech);
             } else if (result.getPayloadType() == PayloadType.IMAGE) {
                 ByteString image = result.getPayload();
                 instructionViewUpdater.accept(image);

@@ -107,11 +107,11 @@ def _start_zoom(step):
 
     zoom_info = owf_pb2.ZoomInfo()
     zoom_info.app_key = credentials.ANDROID_KEY
-    zoom_info.app_secret = credentials.ANDROID_SECRETs
+    zoom_info.app_secret = credentials.ANDROID_SECRET
     zoom_info.meeting_number = credentials.MEETING_NUMBER
     zoom_info.meeting_password = credentials.MEETING_PASSWORD
 
-    to_client_extras.zoom_info = zoom_info
+    to_client_extras.zoom_info.CopyFrom(zoom_info)
 
     result_wrapper.extras.Pack(to_client_extras)
     return result_wrapper
@@ -240,6 +240,22 @@ class InferenceEngine(cognitive_engine.Engine):
         to_server_extras = cognitive_engine.unpack_extras(
             owf_pb2.ToServerExtras, input_frame)
 
+        if (to_server_extras.zoom_status ==
+              owf_pb2.ToServerExtras.ZoomStatus.STOP):
+            status = gabriel_pb2.ResultWrapper.Status.SUCCESS
+            result_wrapper = cognitive_engine.create_result_wrapper(status)
+            to_client_extras = owf_pb2.ToClientExtras()
+            to_client_extras.step = 'find_3screws'
+            to_client_extras.zoom_result = owf_pb2.ToClientExtras.ZoomResult.NO_CALL
+
+            result = gabriel_pb2.ResultWrapper.Result()
+            result.payload_type = gabriel_pb2.PayloadType.TEXT
+            result.payload = 'Zoom call ended'.encode()
+            result_wrapper.results.append(result)
+
+            result_wrapper.extras.Pack(to_client_extras)
+            return result_wrapper
+        
         step = to_server_extras.step
         if step == '':
             state = self._states_models.get_start_state()
@@ -249,7 +265,7 @@ class InferenceEngine(cognitive_engine.Engine):
                 return _result_wrapper_for(
                     step, owf_pb2.ToClientExtras.ZoomResult.EXPERT_BUSY)
 
-            return _start_zoom(step)
+            return _start_zoom(step)     
         else:
             state = self._states_models.get_state(step)
 

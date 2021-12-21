@@ -20,6 +20,7 @@ from gabriel_server import cognitive_engine
 from gabriel_server import local_engine
 from gabriel_protocol import gabriel_pb2
 
+import credentials
 import mpncov
 import owf_pb2
 import wca_state_machine_pb2
@@ -78,19 +79,39 @@ def _result_wrapper_for_transition(transition):
         result.payload_type = gabriel_pb2.PayloadType.VIDEO
         result.payload = transition.instruction.video
         result_wrapper.results.append(result)
-    
+
     to_client_extras = owf_pb2.ToClientExtras()
     to_client_extras.step = transition.next_state
+    to_client_extras.zoom_result = owf_pb2.ToClientExtras.ZoomResult.NO_CALL
 
     result_wrapper.extras.Pack(to_client_extras)
     return result_wrapper
 
 
-def _result_wrapper_for(step):
+def _result_wrapper_for(step, zoom_result):
     status = gabriel_pb2.ResultWrapper.Status.SUCCESS
     result_wrapper = cognitive_engine.create_result_wrapper(status)
     to_client_extras = owf_pb2.ToClientExtras()
     to_client_extras.step = step
+    to_client_extras.zoom_result = zoom_result
+
+    result_wrapper.extras.Pack(to_client_extras)
+    return result_wrapper
+
+
+def _start_zoom(step):
+    status = gabriel_pb2.ResultWrapper.Status.SUCCESS
+    result_wrapper = cognitive_engine.create_result_wrapper(status)
+    to_client_extras = owf_pb2.ToClientExtras()
+    to_client_extras.zoom_result = owf_pb2.ToClientExtras.ZoomResult.CALL_START
+
+    zoom_info = owf_pb2.ZoomInfo()
+    zoom_info.app_key = credentials.ANDROID_KEY
+    zoom_info.app_secret = credentials.ANDROID_SECRETs
+    zoom_info.meeting_number = credentials.MEETING_NUMBER
+    zoom_info.meeting_password = credentials.MEETING_PASSWORD
+
+    to_client_extras.zoom_info = zoom_info
 
     result_wrapper.extras.Pack(to_client_extras)
     return result_wrapper
@@ -213,6 +234,7 @@ class InferenceEngine(cognitive_engine.Engine):
             normalize,
         ])
         self._states_models = _StatesModels(fsm_file_path)
+        self._on_zoom_call = False
 
     def handle(self, input_frame):
         to_server_extras = cognitive_engine.unpack_extras(
@@ -221,6 +243,13 @@ class InferenceEngine(cognitive_engine.Engine):
         step = to_server_extras.step
         if step == '':
             state = self._states_models.get_start_state()
+        elif (to_server_extras.zoom_status ==
+              owf_pb2.ToServerExtras.ZoomStatus.START):
+            if self._on_zoom_call:
+                return _result_wrapper_for(
+                    step, owf_pb2.ToClientExtras.ZoomResult.EXPERT_BUSY)
+
+            return _start_zoom(step)
         else:
             state = self._states_models.get_state(step)
 
@@ -283,7 +312,8 @@ class InferenceEngine(cognitive_engine.Engine):
 
             return _result_wrapper_for_transition(transition)
 
-        return _result_wrapper_for(step)
+        return _result_wrapper_for(
+            step, owf_pb2.ToClientExtras.ZoomResult.NO_CALL)
 
 
 def main():

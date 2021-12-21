@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='owf',
   syntax='proto3',
   serialized_options=_b('\n\016edu.cmu.cs.owfB\006Protos'),
-  serialized_pb=_b('\n\towf.proto\x12\x03owf\"\x83\x01\n\x0eToServerExtras\x12\x0c\n\x04step\x18\x01 \x01(\t\x12\x33\n\x0bzoom_status\x18\x03 \x01(\x0e\x32\x1e.owf.ToServerExtras.ZoomStatus\".\n\nZoomStatus\x12\x0b\n\x07NO_CALL\x10\x00\x12\t\n\x05START\x10\x01\x12\x08\n\x04STOP\x10\x02\"@\n\x0eToClientExtras\x12\x0c\n\x04step\x18\x01 \x01(\t\x12 \n\tzoom_info\x18\x02 \x01(\x0b\x32\r.owf.ZoomInfo\"a\n\x08ZoomInfo\x12\x0f\n\x07\x61pp_key\x18\x01 \x01(\t\x12\x12\n\napp_secret\x18\x02 \x01(\t\x12\x16\n\x0emeeting_number\x18\x03 \x01(\t\x12\x18\n\x10meeting_password\x18\x04 \x01(\tB\x18\n\x0e\x65\x64u.cmu.cs.owfB\x06Protosb\x06proto3')
+  serialized_pb=_b('\n\towf.proto\x12\x03owf\"\x83\x01\n\x0eToServerExtras\x12\x0c\n\x04step\x18\x01 \x01(\t\x12\x33\n\x0bzoom_status\x18\x02 \x01(\x0e\x32\x1e.owf.ToServerExtras.ZoomStatus\".\n\nZoomStatus\x12\x0b\n\x07NO_CALL\x10\x00\x12\t\n\x05START\x10\x01\x12\x08\n\x04STOP\x10\x02\"\xb1\x01\n\x0eToClientExtras\x12\x0c\n\x04step\x18\x01 \x01(\t\x12 \n\tzoom_info\x18\x02 \x01(\x0b\x32\r.owf.ZoomInfo\x12\x33\n\x0bzoom_result\x18\x03 \x01(\x0e\x32\x1e.owf.ToClientExtras.ZoomResult\":\n\nZoomResult\x12\x0b\n\x07NO_CALL\x10\x00\x12\x0e\n\nCALL_START\x10\x01\x12\x0f\n\x0b\x45XPERT_BUSY\x10\x02\"a\n\x08ZoomInfo\x12\x0f\n\x07\x61pp_key\x18\x01 \x01(\t\x12\x12\n\napp_secret\x18\x02 \x01(\t\x12\x16\n\x0emeeting_number\x18\x03 \x01(\t\x12\x18\n\x10meeting_password\x18\x04 \x01(\tB\x18\n\x0e\x65\x64u.cmu.cs.owfB\x06Protosb\x06proto3')
 )
 
 
@@ -51,6 +51,32 @@ _TOSERVEREXTRAS_ZOOMSTATUS = _descriptor.EnumDescriptor(
 )
 _sym_db.RegisterEnumDescriptor(_TOSERVEREXTRAS_ZOOMSTATUS)
 
+_TOCLIENTEXTRAS_ZOOMRESULT = _descriptor.EnumDescriptor(
+  name='ZoomResult',
+  full_name='owf.ToClientExtras.ZoomResult',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='NO_CALL', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='CALL_START', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='EXPERT_BUSY', index=2, number=2,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=272,
+  serialized_end=330,
+)
+_sym_db.RegisterEnumDescriptor(_TOCLIENTEXTRAS_ZOOMRESULT)
+
 
 _TOSERVEREXTRAS = _descriptor.Descriptor(
   name='ToServerExtras',
@@ -68,7 +94,7 @@ _TOSERVEREXTRAS = _descriptor.Descriptor(
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='zoom_status', full_name='owf.ToServerExtras.zoom_status', index=1,
-      number=3, type=14, cpp_type=8, label=1,
+      number=2, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -112,11 +138,19 @@ _TOCLIENTEXTRAS = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='zoom_result', full_name='owf.ToClientExtras.zoom_result', index=2,
+      number=3, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
+    _TOCLIENTEXTRAS_ZOOMRESULT,
   ],
   serialized_options=None,
   is_extendable=False,
@@ -124,8 +158,8 @@ _TOCLIENTEXTRAS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=152,
-  serialized_end=216,
+  serialized_start=153,
+  serialized_end=330,
 )
 
 
@@ -176,13 +210,15 @@ _ZOOMINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=218,
-  serialized_end=315,
+  serialized_start=332,
+  serialized_end=429,
 )
 
 _TOSERVEREXTRAS.fields_by_name['zoom_status'].enum_type = _TOSERVEREXTRAS_ZOOMSTATUS
 _TOSERVEREXTRAS_ZOOMSTATUS.containing_type = _TOSERVEREXTRAS
 _TOCLIENTEXTRAS.fields_by_name['zoom_info'].message_type = _ZOOMINFO
+_TOCLIENTEXTRAS.fields_by_name['zoom_result'].enum_type = _TOCLIENTEXTRAS_ZOOMRESULT
+_TOCLIENTEXTRAS_ZOOMRESULT.containing_type = _TOCLIENTEXTRAS
 DESCRIPTOR.message_types_by_name['ToServerExtras'] = _TOSERVEREXTRAS
 DESCRIPTOR.message_types_by_name['ToClientExtras'] = _TOCLIENTEXTRAS
 DESCRIPTOR.message_types_by_name['ZoomInfo'] = _ZOOMINFO

@@ -11,6 +11,7 @@ import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 import androidx.camera.view.PreviewView;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -35,9 +36,12 @@ import edu.cmu.cs.gabriel.camera.ImageViewUpdater;
 import edu.cmu.cs.gabriel.camera.YuvToJPEGConverter;
 import edu.cmu.cs.gabriel.client.comm.ServerComm;
 import edu.cmu.cs.gabriel.client.results.ErrorType;
-import edu.cmu.cs.gabriel.protocol.Protos;
+import edu.cmu.cs.gabriel.protocol.Protos.InputFrame;
+import edu.cmu.cs.gabriel.protocol.Protos.ResultWrapper;
+import edu.cmu.cs.gabriel.protocol.Protos.PayloadType;
 import edu.cmu.cs.owf.Protos.ToClientExtras;
 import edu.cmu.cs.owf.Protos.ToServerExtras;
+import edu.cmu.cs.owf.Protos.ZoomInfo;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -74,14 +78,41 @@ public class MainActivity extends AppCompatActivity {
             new ActivityResultCallback<ActivityResult>() {
                 @Override
                 public void onActivityResult(ActivityResult result) {
-                    // Tell server Zoom call has ended
+                    ToServerExtras toServerExtras = ToServerExtras.newBuilder()
+                            .setZoomStatus(ToServerExtras.ZoomStatus.STOP)
+                            .build();
+
+                    serverComm.send(
+                            InputFrame.newBuilder().setExtras(pack(toServerExtras)).build(),
+                            SOURCE,
+                            /* wait */ true);
                 }
             });
 
-    private final Consumer<Protos.ResultWrapper> consumer = resultWrapper -> {
+    private final Consumer<ResultWrapper> consumer = resultWrapper -> {
         try {
             ToClientExtras toClientExtras = ToClientExtras.parseFrom(
                     resultWrapper.getExtras().getValue());
+            if (toClientExtras.getZoomResult() == ToClientExtras.ZoomResult.CALL_START) {
+                ZoomInfo zoomInfo = toClientExtras.getZoomInfo();
+
+                Intent intent = new Intent(this, ZoomActivity.class);
+                intent.putExtra(EXTRA_APP_KEY, zoomInfo.getAppKey());
+                intent.putExtra(EXTRA_APP_SECRET, zoomInfo.getAppSecret());
+                intent.putExtra(EXTRA_MEETING_NUMBER, zoomInfo.getMeetingNumber());
+                intent.putExtra(EXTRA_MEETING_PASSWORD, zoomInfo.getMeetingPassword());
+
+                activityResultLauncher.launch(intent);
+            } else if (toClientExtras.getZoomResult() == ToClientExtras.ZoomResult.EXPERT_BUSY) {
+                runOnUiThread(() -> {
+                    AlertDialog alertDialog = new AlertDialog.Builder(this)
+                            .setTitle("Expert Busy")
+                            .setMessage("The expert is currently helping someone else.")
+                            .create();
+                    alertDialog.show();
+                });
+            }
+
             step = toClientExtras.getStep();
 
         } catch (InvalidProtocolBufferException e) {
@@ -92,12 +123,12 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        for (Protos.ResultWrapper.Result result : resultWrapper.getResultsList()) {
-            if (result.getPayloadType() == Protos.PayloadType.TEXT) {
+        for (ResultWrapper.Result result : resultWrapper.getResultsList()) {
+            if (result.getPayloadType() == PayloadType.TEXT) {
                 ByteString dataString = result.getPayload();
                 String speech = dataString.toStringUtf8();
                 this.textToSpeech.speak(speech, TextToSpeech.QUEUE_ADD, null, null);
-            } else if (result.getPayloadType() == Protos.PayloadType.IMAGE) {
+            } else if (result.getPayloadType() == PayloadType.IMAGE) {
                 ByteString image = result.getPayload();
                 instructionViewUpdater.accept(image);
 
@@ -106,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
                     instructionVideo.setVisibility(View.INVISIBLE);
                     instructionVideo.stopPlayback();
                 });
-            } else if (result.getPayloadType() == Protos.PayloadType.VIDEO) {
+            } else if (result.getPayloadType() == PayloadType.VIDEO) {
                 try {
                     videoFile.delete();
                     videoFile.createNewFile();
@@ -162,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
             textToSpeech.setLanguage(Locale.US);
 
             ToServerExtras toServerExtras = ToServerExtras.newBuilder().setStep("").build();
-            Protos.InputFrame inputFrame = Protos.InputFrame.newBuilder()
+            InputFrame inputFrame = InputFrame.newBuilder()
                     .setExtras(pack(toServerExtras))
                     .build();
 
@@ -193,10 +224,11 @@ public class MainActivity extends AppCompatActivity {
 
                 ToServerExtras toServerExtras = ToServerExtras.newBuilder()
                         .setStep(MainActivity.this.step)
+                        .setZoomStatus(ToServerExtras.ZoomStatus.NO_CALL)
                         .build();
 
-                return Protos.InputFrame.newBuilder()
-                        .setPayloadType(Protos.PayloadType.IMAGE)
+                return InputFrame.newBuilder()
+                        .setPayloadType(PayloadType.IMAGE)
                         .addPayloads(jpegByteString)
                         .setExtras(pack(toServerExtras))
                         .build();
@@ -214,6 +246,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void startZoom(View view) {
-        // Tell server zoom call has started
+        ToServerExtras toServerExtras = ToServerExtras.newBuilder()
+                .setStep(step)
+                .setZoomStatus(ToServerExtras.ZoomStatus.START)
+                .build();
+
+        serverComm.send(
+                InputFrame.newBuilder().setExtras(pack(toServerExtras)).build(),
+                SOURCE,
+                /* wait */ true);
     }
 }

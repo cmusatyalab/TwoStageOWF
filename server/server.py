@@ -5,6 +5,7 @@ import logging
 import io
 import os
 from collections import namedtuple
+from multiprocessing import Process, Pipe
 
 import cv2
 import numpy as np
@@ -21,6 +22,7 @@ from gabriel_server import local_engine
 from gabriel_protocol import gabriel_pb2
 
 import credentials
+import http_server
 import mpncov
 import owf_pb2
 import wca_state_machine_pb2
@@ -99,7 +101,7 @@ def _result_wrapper_for(step, zoom_result):
     return result_wrapper
 
 
-def _start_zoom(step):
+def _start_zoom():
     status = gabriel_pb2.ResultWrapper.Status.SUCCESS
     result_wrapper = cognitive_engine.create_result_wrapper(status)
     to_client_extras = owf_pb2.ToClientExtras()
@@ -221,6 +223,44 @@ class _StatesModels:
         return self._start_state
 
 
+class _StatesForExpertCall:
+    def __init__(self, transition):
+        self._added_states = set()
+        self._state_names = []
+        self._transition_to_state = {}
+
+        if not os.path.exists(http_server.IMAGES_DIR):
+            os.mkdir(http_server.IMAGES_DIR)
+
+        self._add_descendants(transition)
+
+    def _add_descendants(self, transition):
+        if transition.next_state.name in self._added_states:
+            return
+
+        self._added_states.add(transition.next_state.name)
+        self._state_names.append(transition.next_state.name)
+        self._transition_to_state[transition.next_state.name] = transition
+
+        img_filename = os.path.join(
+            http_server.IMAGES_DIR, '{}.jpg'.format(transition.next_state))
+        with open(img_filename, 'wb') as f:
+            f.write(transition.instruction.image)
+
+        if transition.next_state.always_transition is not None:
+            self.add_descendants(transition.next_state.always_transition)
+            return
+
+        for transition in transition.next_state.has_class_transitions.values():
+            self.add_descendants(transition)
+
+    def get_state_names(self):
+        return self._state_names
+
+    def get_transition(self, name):
+        return self._transition_to_state[name]
+
+
 class InferenceEngine(cognitive_engine.Engine):
     def __init__(self, fsm_file_path):
         physical_devices = tf.config.list_physical_devices('GPU')
@@ -234,6 +274,19 @@ class InferenceEngine(cognitive_engine.Engine):
             normalize,
         ])
         self._states_models = _StatesModels(fsm_file_path)
+
+        start_state = self._states_models.get_start_state()
+        assert start_state.always_transition is not None, 'bad start state'
+        self._states_for_expert_call = _StatesForExpertCall(
+            start_state.always_transition)
+        state_names = self._states_for_expert_call.get_state_names()
+
+        http_server_conn, self._engine_conn = Pipe()
+        self._http_server_process = Process(
+            target=http_server.start_http_server,
+            args=(http_server_conn, state_names))
+        self._http_server_process.start()
+
         self._on_zoom_call = False
 
     def handle(self, input_frame):
@@ -241,21 +294,17 @@ class InferenceEngine(cognitive_engine.Engine):
             owf_pb2.ToServerExtras, input_frame)
 
         if (to_server_extras.zoom_status ==
-              owf_pb2.ToServerExtras.ZoomStatus.STOP):
-            status = gabriel_pb2.ResultWrapper.Status.SUCCESS
-            result_wrapper = cognitive_engine.create_result_wrapper(status)
-            to_client_extras = owf_pb2.ToClientExtras()
-            to_client_extras.step = 'find_3screws'
-            to_client_extras.zoom_result = owf_pb2.ToClientExtras.ZoomResult.NO_CALL
+                owf_pb2.ToServerExtras.ZoomStatus.STOP):
+            msg = {
+                'zoom_action': 'stop'
+            }
+            self._engine_conn.send(msg)
+            pipe_output = self._engine_conn.recv()
+            new_step = pipe_output.get('step')
+            logger.info('Zoom Stopped. New step: %s', new_step)
+            transition = self._states_for_expert_call.get_transition(new_step)
+            return _result_wrapper_for_transition(transition)
 
-            result = gabriel_pb2.ResultWrapper.Result()
-            result.payload_type = gabriel_pb2.PayloadType.TEXT
-            result.payload = 'Zoom call ended'.encode()
-            result_wrapper.results.append(result)
-
-            result_wrapper.extras.Pack(to_client_extras)
-            return result_wrapper
-        
         step = to_server_extras.step
         if step == '':
             state = self._states_models.get_start_state()
@@ -265,7 +314,13 @@ class InferenceEngine(cognitive_engine.Engine):
                 return _result_wrapper_for(
                     step, owf_pb2.ToClientExtras.ZoomResult.EXPERT_BUSY)
 
-            return _start_zoom(step)     
+            msg = {
+                'zoom_action': 'start',
+                'step': step
+            }
+            self._engine_conn.send(msg)
+            logger.info('Zoom Started')
+            return _start_zoom()
         else:
             state = self._states_models.get_state(step)
 

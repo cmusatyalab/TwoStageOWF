@@ -30,7 +30,7 @@ $(document).ready(function() {
 
         // Send this.id to client
         var msg = {
-            step: this.id;
+            step: this.id,
         };
         socket.send(JSON.stringify(msg));
     });

@@ -15,7 +15,7 @@ import jinja2
 
 ROLE = '1'
 USER_NAME = 'Human Expert'
-IMAGES_DIR = '/images'
+IMAGES_DIR = 'images'
 
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ def start_http_server(conn, step_names):
     aiohttp_jinja2.setup(
         app, loader=jinja2.FileSystemLoader('templates'))
 
-    server_state = ServerState()
+    server_state = _ServerState()
     websocket_handler = server_state.create_websocket_handler(conn)
 
     @aiohttp_jinja2.template('index.html')
@@ -122,7 +122,7 @@ def start_http_server(conn, step_names):
         web.get('/zoom', zoom),
         web.get('/favicon.ico', favicon),
         web.static('/static', 'static'),
-        web.static(IMAGES_DIR, 'images'),
+        web.static('/{}'.format(IMAGES_DIR), IMAGES_DIR),
         web.get('/ws', websocket_handler),
     ])
 

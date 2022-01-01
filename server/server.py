@@ -224,10 +224,12 @@ class _StatesModels:
 
 
 class _StatesForExpertCall:
-    def __init__(self, transition):
+    def __init__(self, transition, states_models):
         self._added_states = set()
         self._state_names = []
         self._transition_to_state = {}
+
+        self._states_models = states_models
 
         if not os.path.exists(http_server.IMAGES_DIR):
             os.mkdir(http_server.IMAGES_DIR)
@@ -235,24 +237,25 @@ class _StatesForExpertCall:
         self._add_descendants(transition)
 
     def _add_descendants(self, transition):
-        if transition.next_state.name in self._added_states:
+        if transition.next_state in self._added_states:
             return
 
-        self._added_states.add(transition.next_state.name)
-        self._state_names.append(transition.next_state.name)
-        self._transition_to_state[transition.next_state.name] = transition
+        self._added_states.add(transition.next_state)
+        self._state_names.append(transition.next_state)
+        self._transition_to_state[transition.next_state] = transition
 
         img_filename = os.path.join(
             http_server.IMAGES_DIR, '{}.jpg'.format(transition.next_state))
         with open(img_filename, 'wb') as f:
             f.write(transition.instruction.image)
 
-        if transition.next_state.always_transition is not None:
-            self.add_descendants(transition.next_state.always_transition)
+        next_state = self._states_models.get_state(transition.next_state)
+        if next_state.always_transition is not None:
+            self._add_descendants(next_state.always_transition)
             return
 
-        for transition in transition.next_state.has_class_transitions.values():
-            self.add_descendants(transition)
+        for transition in next_state.has_class_transitions.values():
+            self._add_descendants(transition)
 
     def get_state_names(self):
         return self._state_names
@@ -278,7 +281,8 @@ class InferenceEngine(cognitive_engine.Engine):
         start_state = self._states_models.get_start_state()
         assert start_state.always_transition is not None, 'bad start state'
         self._states_for_expert_call = _StatesForExpertCall(
-            start_state.always_transition)
+            start_state.always_transition,
+            self._states_models)
         state_names = self._states_for_expert_call.get_state_names()
 
         http_server_conn, self._engine_conn = Pipe()

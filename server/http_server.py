@@ -18,6 +18,11 @@ USER_NAME = 'Human Expert'
 IMAGES_DIR = 'images'
 
 
+KEYS = '/TwoStageOWF/server/keys'
+CERTFILE = os.path.join(KEYS, 'fullchain.pem')
+KEYFILE = os.path.join(KEYS, 'privkey.pem')
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -127,6 +132,6 @@ def start_http_server(conn, step_names):
     ])
 
     context = ssl.SSLContext()
-    context.load_cert_chain(credentials.CERTFILE, credentials.KEYFILE)
+    context.load_cert_chain(CERTFILE, KEYFILE)
     logger.info("Starting HTTP Server")
     web.run_app(app, ssl_context=context)

@@ -68,10 +68,10 @@ MEETING_PASSWORD = 'MEETING_PASSWORD'
 2. Run the following commands to make copies of the credentials that are
    accessible to Docker:
 ```
-sudo cp /etc/letsencrypt/live/YOUR_HOSTNAME/privkey.pem /path/to/this/repository/server/credentials
-sudo cp /etc/letsencrypt/live/YOUR_HOSTNAME/fullchain.pem /path/to/this/repository/server/credentials
-sudo chown $USER /path/to/this/repository/server/credentials/privkey.pem
-sudo chown $USER /path/to/this/repository/server/credentials/fullchain.pem
+sudo cp /etc/letsencrypt/live/YOUR_HOSTNAME/privkey.pem /path/to/this/repository/server/keys
+sudo cp /etc/letsencrypt/live/YOUR_HOSTNAME/fullchain.pem /path/to/this/repository/server/keys
+sudo chown $USER /path/to/this/repository/server/keys/privkey.pem
+sudo chown $USER /path/to/this/repository/server/keys/fullchain.pem
 ```
 3. Install the Docker container for TensorFlow object detection by following
    [these](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2.md#docker-installation)

@@ -84,6 +84,9 @@ sudo chown $USER /path/to/this/repository/server/keys/fullchain.pem
    additional directories when starting the container.
 5. Run `cd /path/to/this/repository/server` and then
    `python3 server.py /path/to/your/app.pbfsm`
+6. Load the interface for the human expert in a browser by navigating to
+   https://YOUR_HOSTNAME:8443/. Note that the page will not load if you do not
+   include https at the start of the url.
 
 ## Client
 

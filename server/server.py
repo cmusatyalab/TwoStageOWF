@@ -332,7 +332,8 @@ class InferenceEngine(cognitive_engine.Engine):
             return _result_wrapper_for_transition(state.always_transition)
 
         if len(state.processors) == 0:
-            return _result_wrapper_for(step)
+            return _result_wrapper_for(
+                step, owf_pb2.ToClientExtras.ZoomResult.NO_CALL)
 
         assert len(state.processors) == 1, 'wrong number of processors'
         processor = state.processors[0]

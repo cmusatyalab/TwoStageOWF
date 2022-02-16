@@ -43,9 +43,10 @@ Fine-grained image classification is performed using
 4. Navigate to `/zoom-sdk-android-5.7.6.1922/mobilertc-android-studio/` in the
    SDK zip file. Copy the `commonlib` and `mobilertc` directories from here to
    the `android-client` directory of this repository.
-5. Go to https://zoom.us/profile and click the picture of a closed eye, next to
-   the line that starts with "Personal Meeting ID."
-6. You should see a URL on the next line that ends in
+5. Go to https://zoom.us/meeting/schedule. On the "Meeting ID" line, select the
+   radio button that starts with "Personal Meeting ID," uncheck "Waiting Room,"
+   and set the Participant Video option to "on." Then click "Save."
+6. On the page that appears, you should see an "Invite Link" URL that ends in
    `web.zoom.us/j/<MEETING_ID>?pwd=<MEETING_PASSWORD>`. Note the meeting ID and
    meeting password.
 5. Create a file called `credentials.py` in the `server` directory of this

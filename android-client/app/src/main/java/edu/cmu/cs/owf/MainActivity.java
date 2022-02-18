@@ -124,6 +124,13 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        boolean hasVideo = false;
+        for (ResultWrapper.Result result : resultWrapper.getResultsList()) {
+            if (result.getPayloadType() == PayloadType.VIDEO) {
+                hasVideo = true;
+            }
+        }
+
         for (ResultWrapper.Result result : resultWrapper.getResultsList()) {
             if (result.getPayloadType() == PayloadType.TEXT) {
                 ByteString dataString = result.getPayload();
@@ -131,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
                 this.textToSpeech.speak(speech, TextToSpeech.QUEUE_ADD, null, null);
 
                 Log.i(TAG, "Saying: " + speech);
-            } else if (result.getPayloadType() == PayloadType.IMAGE) {
+            } else if ((result.getPayloadType() == PayloadType.IMAGE) && !hasVideo) {
                 ByteString image = result.getPayload();
                 instructionViewUpdater.accept(image);
 

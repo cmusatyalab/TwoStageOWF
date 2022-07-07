@@ -20,7 +20,6 @@ import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.Switch;
 import android.widget.VideoView;
 
 import com.google.protobuf.Any;
@@ -75,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
     private VideoView instructionVideo;
     private File videoFile;
 
-    private Switch sendFramesSwitch;
+    private SwitchCompat sendFramesSwitch;
 
     private final ActivityResultLauncher<Intent> activityResultLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -137,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
 
         for (ResultWrapper.Result result : resultWrapper.getResultsList()) {
             if (result.getPayloadType() == PayloadType.TEXT) {
-                sendFramesSwitch.setChecked(false);
+                runOnUiThread(() -> sendFramesSwitch.setChecked(false));
 
                 ByteString dataString = result.getPayload();
                 String speech = dataString.toStringUtf8();

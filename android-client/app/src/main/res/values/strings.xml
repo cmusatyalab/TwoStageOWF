@@ -7,4 +7,5 @@
     <string name="your_progress">Your Progress:</string>
     <string name="call_expert">Call Expert</string>
     <string name="end_call">End Call</string>
+    <string name="send_frames">Send Frames</string>
 </resources>

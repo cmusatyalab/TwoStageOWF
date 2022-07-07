@@ -6,6 +6,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
@@ -19,6 +20,7 @@ import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.Switch;
 import android.widget.VideoView;
 
 import com.google.protobuf.Any;
@@ -72,6 +74,8 @@ public class MainActivity extends AppCompatActivity {
     private ImageView instructionImage;
     private VideoView instructionVideo;
     private File videoFile;
+
+    private Switch sendFramesSwitch;
 
     private final ActivityResultLauncher<Intent> activityResultLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -133,6 +137,8 @@ public class MainActivity extends AppCompatActivity {
 
         for (ResultWrapper.Result result : resultWrapper.getResultsList()) {
             if (result.getPayloadType() == PayloadType.TEXT) {
+                sendFramesSwitch.setChecked(false);
+
                 ByteString dataString = result.getPayload();
                 String speech = dataString.toStringUtf8();
                 this.textToSpeech.speak(speech, TextToSpeech.QUEUE_ADD, null, null);
@@ -182,6 +188,8 @@ public class MainActivity extends AppCompatActivity {
         instructionImage = findViewById(R.id.instructionImage);
         instructionViewUpdater = new ImageViewUpdater(instructionImage);
 
+        sendFramesSwitch = findViewById(R.id.sendFramesSwitch);
+
         instructionVideo = findViewById(R.id.instructionVideo);
 
         // from https://stackoverflow.com/a/8431374/859277
@@ -229,6 +237,11 @@ public class MainActivity extends AppCompatActivity {
     final private ImageAnalysis.Analyzer analyzer = new ImageAnalysis.Analyzer() {
         @Override
         public void analyze(@NonNull ImageProxy image) {
+            if (!sendFramesSwitch.isChecked()) {
+                image.close();
+                return;
+            }
+
             serverComm.sendSupplier(() -> {
                 ByteString jpegByteString = yuvToJPEGConverter.convert(image);
 

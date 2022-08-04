@@ -359,8 +359,10 @@ class InferenceEngine(cognitive_engine.Engine):
         conf_threshold = float(callable_args[CONF_THRESHOLD])
         detector_class_name = callable_args[DETECTOR_CLASS_NAME]
         for score, box, class_id in zip(scores, boxes, classes):
+            if (score < conf_threshold):
+                continue
             class_name = detector.category_index[class_id]['name']
-            if (score < conf_threshold) or (class_name != detector_class_name):
+            if (class_name != detector_class_name):
                 continue
             logger.debug('found object')
 

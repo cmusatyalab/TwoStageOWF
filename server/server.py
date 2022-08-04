@@ -179,7 +179,7 @@ class _StatesModels:
             labels = ast.literal_eval(labels_file.read())
 
             freezed_layer = 0
-            model = mpncov.Newmodel(self._classifier_representation,
+            model = mpncov.Newmodel(self._classifier_representation.copy(),
                                     len(labels), freezed_layer)
             model.features = torch.nn.DataParallel(model.features)
             model.cuda()

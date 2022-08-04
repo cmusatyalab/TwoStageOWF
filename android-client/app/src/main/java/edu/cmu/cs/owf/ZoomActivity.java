@@ -123,6 +123,7 @@ public class ZoomActivity extends AppCompatActivity {
                 InMeetingService inMeetingService = zoomSDK.getInMeetingService();
                 inMeetingService.setPlayChimeOnOff(false);
                 inMeetingService.getInMeetingAudioController().connectAudioWithVoIP();
+                inMeetingService.getInMeetingAudioController().muteMyAudio(false);
                 InMeetingVideoController inMeetingVideoController = inMeetingService
                         .getInMeetingVideoController();
                 for (CameraDevice cameraDevice : inMeetingVideoController.getCameraDeviceList()) {

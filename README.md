@@ -33,17 +33,61 @@ Fine-grained image classification is performed using
 6. `conf_threshold` is the minimum confidence score we require from the object
    detector. Any bounding boxes with a lower confidence score will be ignored.
 
+## Setting up Zoom
+
+1. Create an account on https://developers.zoom.us/. Using a CMU SSO account
+   will not work.
+2. Create JWT and SDK credentials on https://marketplace.zoom.us/develop/create
+3. Download the Android SDK. I have tested this code with v5.7.6.1922. However,
+   I suspect newer versions would also work.
+4. Navigate to `/zoom-sdk-android-5.7.6.1922/mobilertc-android-studio/` in the
+   SDK zip file. Copy the `commonlib` and `mobilertc` directories from here to
+   the `android-client` directory of this repository.
+5. Go to https://zoom.us/meeting/schedule. On the "Meeting ID" line, select the
+   radio button that starts with "Personal Meeting ID," uncheck "Waiting Room,"
+   and set the Participant Video option to "on." Then click "Save."
+6. On the page that appears, you should see an "Invite Link" URL that ends in
+   `web.zoom.us/j/<MEETING_ID>?pwd=<MEETING_PASSWORD>`. Note the meeting ID and
+   meeting password.
+5. Create a file called `credentials.py` in the `server` directory of this
+   repository. Format it as follows, with the proper values. For example,
+   replace "SDK key" with your actual SDK key:
+```
+WEB_KEY = 'JWT API Key'
+WEB_SECRET = 'JWT API Secret'
+
+ANDROID_KEY = 'SDK Key'
+ANDROID_SECRET = 'SDK Secret'
+
+MEETING_NUMBER = 'MEETING_ID'
+MEETING_PASSWORD = 'MEETING_PASSWORD'
+```
+
 ## Installation
 
-1. Install the Docker container for TensorFlow object detection by following
+1. Set up an SSL certificate for your server using https://letsencrypt.org/
+2. Run the following commands to make copies of the credentials that are
+   accessible to Docker:
+```
+sudo cp /etc/letsencrypt/live/YOUR_HOSTNAME/privkey.pem /path/to/this/repository/server/keys
+sudo cp /etc/letsencrypt/live/YOUR_HOSTNAME/fullchain.pem /path/to/this/repository/server/keys
+sudo chown $USER /path/to/this/repository/server/keys/privkey.pem
+sudo chown $USER /path/to/this/repository/server/keys/fullchain.pem
+```
+3. Install the Docker container for TensorFlow object detection by following
    [these](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2.md#docker-installation)
    instructions.
-2. Run `pip install gabriel-server` from inside the container.
-3. Commit the container.
-4. Run the container with the object detectors and classifiers accessible in the
-   directories that you specified in the web editor.
+4. Run `pip install gabriel-server` from inside the container.
+5. Commit the container.
+4. Run the container with the command `docker run --gpus all --rm -it -v /path/to/this/repository:/TwoStageOWF -p 9099:9099 -p 8443:8443 YOUR_TAG`
+   Note that you object detectors and classifiers must be accessible in the
+   directories that you specified in the web editor. You can volume map
+   additional directories when starting the container.
 5. Run `cd /path/to/this/repository/server` and then
    `python3 server.py /path/to/your/app.pbfsm`
+6. Load the interface for the human expert in a browser by navigating to
+   https://YOUR_HOSTNAME:8443/. Note that the page will not load if you do not
+   include https at the start of the url.
 
 ## Client
 
